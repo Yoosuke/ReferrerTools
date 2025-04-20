@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>紹介URL生成ツール</title>
+  <style>
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      color: #333;
+    }
+    h1 { color: #2c3e50; margin-bottom: 24px; }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    .btn {
+      background-color: #3498db;
+      color: white;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .btn:hover {
+      background-color: #2980b9;
+    }
+    .result {
+      margin-top: 30px;
+      padding: 20px;
+      background-color: #f8f9fa;
+      border-radius: 4px;
+      border-left: 4px solid #3498db;
+    }
+    .copy-btn {
+      background-color: #2ecc71;
+      color: white;
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .copy-btn:hover {
+      background-color: #27ae60;
+    }
+    .hidden {
+      display: none;
+    }
+    .industry-container {
+      margin-top: 10px;
+    }
+    .industry-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .add-industry {
+      background-color: #95a5a6;
+      color: white;
+      padding: 5px 10px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    .url-item {
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+    .url-content {
+      word-break: break-all;
+      background: #eee;
+      padding: 10px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+    .qr-code {
+      margin-top: 15px;
+      text-align: center;
+    }
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>紹介URL生成ツール</h1>
+  
+  <div class="form-group">
+    <label for="referrer">あなたのID:</label>
+    <input type="text" id="referrer" placeholder="例: tanaka">
+  </div>
+  
+  <div class="form-group">
+    <label>紹介する業界:</label>
+    <div id="industries-container">
+      <div class="industry-item">
+        <select class="industry-select">
+          <option value="logistics">物流</option>
+          <option value="retail">小売</option>
+          <option value="manufacturing">製造</option>
+          <option value="construction">建設</option>
+          <option value="it">IT・通信</option>
+          <option value="finance">金融・保険</option>
+          <option value="restaurant">飲食</option>
+          <option value="healthcare">医療・介護</option>
+          <option value="education">教育</option>
+          <option value="other">その他</option>
+        </select>
+      </div>
+    </div>
+    <button class="add-industry" id="add-industry-btn">+ 業界を追加</button>
+  </div>
+  
+  <button class="btn" id="generate-btn">URLを生成</button>
+  
+  <div class="result hidden" id="result-container">
+    <h3>あなたの紹介URL:</h3>
+    <div id="url-list"></div>
+  </div>
+  
+  <!-- QRコード生成用のライブラリを追加 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const generateBtn = document.getElementById('generate-btn');
+      const addIndustryBtn = document.getElementById('add-industry-btn');
+      const industriesContainer = document.getElementById('industries-container');
+      const resultContainer = document.getElementById('result-container');
+      const urlList = document.getElementById('url-list');
+      
+      // 業界追加ボタンのクリックイベント
+      addIndustryBtn.addEventListener('click', function() {
+        const industryItem = document.createElement('div');
+        industryItem.className = 'industry-item';
+        industryItem.innerHTML = `
+          <select class="industry-select">
+            <option value="logistics">物流</option>
+            <option value="retail">小売</option>
+            <option value="manufacturing">製造</option>
+            <option value="construction">建設</option>
+            <option value="it">IT・通信</option>
+            <option value="finance">金融・保険</option>
+            <option value="restaurant">飲食</option>
+            <option value="healthcare">医療・介護</option>
+            <option value="education">教育</option>
+            <option value="other">その他</option>
+          </select>
+          <button class="remove-btn" style="margin-left: 10px; color: red; background: none; border: none; cursor: pointer;">削除</button>
+        `;
+        industriesContainer.appendChild(industryItem);
+        
+        // 削除ボタンのイベントリスナー
+        const removeBtn = industryItem.querySelector('.remove-btn');
+        removeBtn.addEventListener('click', function() {
+          industriesContainer.removeChild(industryItem);
+        });
+      });
+      
+      // URL生成ボタンのクリックイベント
+      generateBtn.addEventListener('click', function() {
+        const referrer = document.getElementById('referrer').value.trim();
+        if (!referrer) {
+          alert('IDを入力してください');
+          return;
+        }
+        
+        const industrySelects = document.querySelectorAll('.industry-select');
+        const selectedIndustries = [];
+        
+        industrySelects.forEach(select => {
+          if (!selectedIndustries.includes(select.value)) {
+            selectedIndustries.push(select.value);
+          }
+        });
+        
+        urlList.innerHTML = '';
+        
+        selectedIndustries.forEach((industry, index) => {
+          // 新しいURL形式: https://route.thewaggle.dev/?ref=XXX&industry=YYY
+          const url = `https://route.thewaggle.dev/?ref=${encodeURIComponent(referrer)}&industry=${encodeURIComponent(industry)}`;
+          
+          const industryNames = {
+            'logistics': '物流',
+            'retail': '小売',
+            'manufacturing': '製造',
+            'construction': '建設',
+            'it': 'IT・通信',
+            'finance': '金融・保険',
+            'restaurant': '飲食',
+            'healthcare': '医療・介護',
+            'education': '教育',
+            'other': 'その他'
+          };
+          
+          const urlItem = document.createElement('div');
+          urlItem.className = 'url-item';
+          
+          urlItem.innerHTML = `
+            <p><strong>${industryNames[industry]}業界用URL:</strong></p>
+            <div class="url-content">${url}</div>
+            <div class="button-group">
+              <button class="copy-btn" data-url="${url}">URLをコピー</button>
+              <button class="download-qr-btn" data-index="${index}" data-industry="${industryNames[industry]}">QRコードを保存</button>
+            </div>
+            <div class="qr-code" id="qrcode-${index}"></div>
+          `;
+          
+          urlList.appendChild(urlItem);
+          
+          // QRコードを生成
+          new QRCode(document.getElementById(`qrcode-${index}`), {
+            text: url,
+            width: 128,
+            height: 128,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+          });
+        });
+        
+        resultContainer.classList.remove('hidden');
+        
+        // コピーボタンのイベントリスナー
+        document.querySelectorAll('.copy-btn').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const url = this.getAttribute('data-url');
+            navigator.clipboard.writeText(url).then(() => {
+              const originalText = this.textContent;
+              this.textContent = 'コピーしました!';
+              this.style.backgroundColor = '#27ae60';
+              
+              setTimeout(() => {
+                this.textContent = originalText;
+                this.style.backgroundColor = '#2ecc71';
+              }, 2000);
+            });
+          });
+        });
+        
+        // QRコード保存ボタンのイベントリスナー
+        document.querySelectorAll('.download-qr-btn').forEach(btn => {
+          btn.addEventListener('click', function() {
+            const index = this.getAttribute('data-index');
+            const industry = this.getAttribute('data-industry');
+            const qrCanvas = document.querySelector(`#qrcode-${index} canvas`);
+            
+            if (qrCanvas) {
+              const link = document.createElement('a');
+              link.download = `紹介URL_${referrer}_${industry}.png`;
+              link.href = qrCanvas.toDataURL('image/png');
+              link.click();
+            }
+          });
+        });
+      });
+    });
+  </script>
+</body>
+</html>
